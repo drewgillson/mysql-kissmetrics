@@ -18,16 +18,38 @@ module MysqlKissmetrics
             t3 = Thread.new(dbh){|dbh| self.import_rmas(dbh)}
             t4 = Thread.new(dbh){|dbh| self.import_creditmemos(dbh)}
             t5 = Thread.new(dbh){|dbh| self.import_tickets(dbh)}
+            t6 = Thread.new(dbh){|dbh| self.import_warranties(dbh)}
             t1.join
             t2.join
             t3.join
             t4.join
             t5.join
+            t6.join
         end
     end
 
+    def self.import_warranties(dbh)
+      sth = dbh.execute("SELECT DATE_FORMAT(DATE_ADD(a.date_added, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, a.customer_email, a.order_id, a.status, DATE_FORMAT(DATE_ADD(a.date_updated, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS date_updated FROM lotwarranty_warranty AS a WHERE customer_email LIKE '%@%' " <<
+                         (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.date_added, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
+                        "ORDER BY a.date_added DESC")
+      while row = sth.fetch do
+          KM.identify(row['customer_email'])
+          ts = DateTime.parse(row['created_at']).to_time.to_i
+          KM.record('wants to warranty something', {'Order ID' => row['order_id'].to_i,
+                                             '_d' => 1,
+                                             '_t' => ts})
+          if row['status'].include? "resolved"
+            ts = DateTime.parse(row['date_updated']).to_time.to_i
+            KM.record('warranty has been resolved', {'Order ID' => row['order_id'].to_i,
+                                                     '_d' => 1,
+                                                     '_t' => ts})
+          end
+      end
+      sth.finish
+    end
+
     def self.import_tickets(dbh)
-      sth = dbh.execute("SELECT DATE_FORMAT(DATE_ADD(a.created_time, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, CASE WHEN a.title OR b.name LIKE '%phone%' THEN 'Called customer service' WHEN a.title LIKE 'Chat transcript%' THEN 'Live-chatted with customer service' ELSE 'Emailed customer service' END AS channel, a.customer_email, a.order_id AS increment_id, b.name AS reason
+      sth = dbh.execute("SELECT DATE_FORMAT(DATE_ADD(a.created_time, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, CASE WHEN a.title OR b.name LIKE '%phone%' THEN 'phoned us' WHEN a.title LIKE 'Chat transcript%' THEN 'chatted with us' ELSE 'emailed us' END AS channel, a.customer_email, a.order_id AS increment_id, b.name AS reason
                          FROM aw_hdu_ticket AS a
                          INNER JOIN aw_hdu_department AS b ON a.department_id = b.id
                          WHERE customer_email != 'anonymous@gmail.com' AND customer_email != 'anon' AND customer_email NOT LIKE 'none@%' " << 
@@ -54,10 +76,10 @@ module MysqlKissmetrics
       while row = sth.fetch do
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
-          KM.record('Requested return merchandise authorization', {'Order ID' => row['increment_id'].to_i,
-                                                                   'Reason' => row['request_type'],
-                                                                   '_d' => 1,
-                                                                   '_t' => ts})
+          KM.record('wants to return something', {'Order ID' => row['increment_id'].to_i,
+                                                                    'Reason' => row['request_type'],
+                                                                    '_d' => 1,
+                                                                    '_t' => ts})
       end
       sth.finish
     end
@@ -71,11 +93,11 @@ module MysqlKissmetrics
       while row = sth.fetch do
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
-          KM.record('Order shipped', {'Order ID' => row['increment_id'].to_i,
-                                      'Order Total' => row['grand_total'].to_f,
-                                      'Order Subtotal' => row['subtotal'].to_f,
-                                      '_d' => 1,
-                                      '_t' => ts})
+          KM.record('order has been shipped', {'Order ID' => row['increment_id'].to_i,
+                                               'Order Total' => row['grand_total'].to_f,
+                                               'Order Subtotal' => row['subtotal'].to_f,
+                                               '_d' => 1,
+                                               '_t' => ts})
       end
       sth.finish      
     end
@@ -89,7 +111,7 @@ module MysqlKissmetrics
       while row = sth.fetch do
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
-          KM.record('Order refunded', {'Order ID' => row['increment_id'].to_i,
+          KM.record('order has been refunded', {'Order ID' => row['increment_id'].to_i,
                                        'Order Total' => row['grand_total'].to_f,
                                        'Order Subtotal' => row['subtotal'].to_f,
                                        '_d' => 1,
@@ -114,13 +136,13 @@ module MysqlKissmetrics
                   "City" => row['city']})
 
           ts = DateTime.parse(row['created_at']).to_time.to_i
-          KM.record('Purchased', {'Order ID' => row['increment_id'].to_i,
-                                                    'Order Total' => row['grand_total'].to_f,
-                                                    'Order Subtotal' => row['subtotal'].to_f,
-                                                    'Ship to Province' => row['region'],
-                                                    'Coupon Code' => row['coupon_code'],
-                                                    '_d' => 1,
-                                                    '_t' => ts})
+          KM.record('bought something', {'Order ID' => row['increment_id'].to_i,
+                                         'Order Total' => row['grand_total'].to_f,
+                                         'Order Subtotal' => row['subtotal'].to_f,
+                                         'Ship to Province' => row['region'],
+                                         'Coupon Code' => row['coupon_code'],
+                                         '_d' => 1,
+                                         '_t' => ts})
 
           xth = dbh.execute("SELECT x.*, CASE WHEN deal_qty > 0 THEN 'Deal of the Day' WHEN msrp = price THEN 'Full Price' WHEN price < msrp THEN CONCAT('On-Sale ', FORMAT((1-(price/msrp))*100,0), '%') END AS type FROM (
                                SELECT t.value AS category, p.qty_ordered AS deal_qty, q.value AS msrp, b.sku, k.value AS brand, CASE WHEN r.value LIKE '%,%' THEN 'Unisex' ELSE s.value END AS department, d.value AS style, j.value AS season, i.value AS product, n.value AS color, o.value AS size, (SELECT MAX(price) FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku) AS price
