@@ -13,16 +13,15 @@ module MysqlKissmetrics
         KM.init(km_key, :log_dir => 'log/')
 
         conn = DBI.connect("dbi:ODBC:" << profile, username, password) do |dbh|
-            @dbh = dbh
-            t1 = Thread.new{self.import_purchases}
-            t2 = Thread.new{self.import_invoices}
-            t3 = Thread.new{self.import_rmas}
-            t4 = Thread.new{self.import_creditmemos}
+            t1 = Thread.new(dbh){|dbh| self.import_purchases(dbh)}
+            t2 = Thread.new(dbh){|dbh| self.import_invoices(dbh)}
+            t3 = Thread.new(dbh){|dbh| self.import_rmas(dbh)}
+            t4 = Thread.new(dbh){|dbh| self.import_creditmemos(dbh)}
         end
     end
 
-    def self.import_rmas
-      sth = @dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, c.name AS request_type FROM sales_flat_order AS a
+    def self.import_rmas(dbh)
+      sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, c.name AS request_type FROM sales_flat_order AS a
                           INNER JOIN aw_rma_entity AS b ON a.entity_id = b.order_id
                           INNER JOIN aw_rma_entity_types AS c ON b.request_type = c.id " <<
                           (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
@@ -38,8 +37,8 @@ module MysqlKissmetrics
       sth.finish
     end
 
-    def self.import_invoices
-      sth = @dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, b.grand_total, b.subtotal FROM sales_flat_order AS a
+    def self.import_invoices(dbh)
+      sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, b.grand_total, b.subtotal FROM sales_flat_order AS a
                           INNER JOIN sales_flat_invoice AS b ON a.entity_id = b.order_id " <<
                           (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                           "ORDER BY b.created_at DESC")
@@ -55,8 +54,8 @@ module MysqlKissmetrics
       sth.finish      
     end
 
-    def self.import_creditmemos
-      sth = @dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, 0 - b.grand_total AS grand_total, 0 - b.subtotal AS subtotal FROM sales_flat_order AS a
+    def self.import_creditmemos(dbh)
+      sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, 0 - b.grand_total AS grand_total, 0 - b.subtotal AS subtotal FROM sales_flat_order AS a
                           INNER JOIN sales_flat_creditmemo AS b ON a.entity_id = b.order_id " <<
                           (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                           "ORDER BY b.created_at DESC")
@@ -72,8 +71,8 @@ module MysqlKissmetrics
       sth.finish  
     end
 
-    def self.import_purchases
-      sth = @dbh.execute("SELECT a.entity_id, DATE_FORMAT(DATE_ADD(a.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, a.customer_email, a.customer_firstname, a.customer_lastname, a.increment_id, a.grand_total, a.subtotal, b.region, b.postcode, b.city, a.coupon_code
+    def self.import_purchases(dbh)
+      sth = dbh.execute("SELECT a.entity_id, DATE_FORMAT(DATE_ADD(a.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, a.customer_email, a.customer_firstname, a.customer_lastname, a.increment_id, a.grand_total, a.subtotal, b.region, b.postcode, b.city, a.coupon_code
                         FROM sales_flat_order AS a
                         INNER JOIN sales_flat_order_address AS b ON a.shipping_address_id = b.entity_id AND b.address_type = 'shipping' " <<
                         (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
@@ -96,7 +95,7 @@ module MysqlKissmetrics
                                                     '_d' => 1,
                                                     '_t' => ts})
 
-          xth = @dbh.execute("SELECT b.sku, k.value AS brand, d.value AS style, j.value AS season, i.value AS product, n.value AS color, o.value AS size, (SELECT MAX(price) FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku) AS price
+          xth = dbh.execute("SELECT b.sku, k.value AS brand, d.value AS style, j.value AS season, i.value AS product, n.value AS color, o.value AS size, (SELECT MAX(price) FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku) AS price
                                           FROM sales_flat_order AS a
                                           INNER JOIN sales_flat_order_item AS b ON a.entity_id = b.order_id AND product_type = 'simple'
                                           LEFT JOIN catalog_product_entity_int AS c ON b.product_id = c.entity_id AND c.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'manufacturer' AND entity_type_id = 4)
