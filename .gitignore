@@ -21,3 +21,4 @@ sftp-config.json
 .gitignore
 log/
 config.yaml
+*sublime-*
