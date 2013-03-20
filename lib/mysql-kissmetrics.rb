@@ -122,7 +122,7 @@ module MysqlKissmetrics
                                                     '_d' => 1,
                                                     '_t' => ts})
 
-          xth = dbh.execute("SELECT x.*, CASE WHEN deal_qty > 0 THEN Deal of the Day' WHEN msrp = price THEN 'Full Price' WHEN price < msrp THEN CONCAT('On-Sale ', FORMAT((1-(price/msrp))*100,0), '%') END AS type FROM (
+          xth = dbh.execute("SELECT x.*, CASE WHEN deal_qty > 0 THEN 'Deal of the Day' WHEN msrp = price THEN 'Full Price' WHEN price < msrp THEN CONCAT('On-Sale ', FORMAT((1-(price/msrp))*100,0), '%') END AS type FROM (
                                SELECT t.value AS category, p.qty_ordered AS deal_qty, q.value AS msrp, b.sku, k.value AS brand, CASE WHEN r.value LIKE '%,%' THEN 'Unisex' ELSE s.value END AS department, d.value AS style, j.value AS season, i.value AS product, n.value AS color, o.value AS size, (SELECT MAX(price) FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku) AS price
                                FROM sales_flat_order AS a
                                INNER JOIN sales_flat_order_item AS b ON a.entity_id = b.order_id AND product_type = 'simple'
