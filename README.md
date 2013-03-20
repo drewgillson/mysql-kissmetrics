@@ -1,4 +1,4 @@
-mssql-kissmetrics
+mysql-kissmetrics
 =================
 
-Integrate MSSQL with KISSMetrics
+Integrate Magento MySQL backend with KISSMetrics to import historic data.

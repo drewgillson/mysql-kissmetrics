@@ -1,6 +1,6 @@
-require "mssql-kissmetrics/version"
+require "mysql-kissmetrics/version"
 
-module MssqlKissmetrics
+module MysqlKissmetrics
     
     require 'dbi'
     require 'km'
@@ -14,15 +14,28 @@ module MssqlKissmetrics
 
         conn = DBI.connect("dbi:ODBC:" << profile, username, password) do |dbh|
             @dbh = dbh
-            #self.import_purchases
+            self.import_purchases
             self.import_invoices
-            #self.import_rmas
+            self.import_rmas
             self.import_creditmemos
         end
-        conn.disconnect
     end
 
     def self.import_rmas
+      sth = @dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),''%b %d %Y %h:%i %p'') AS created_at, c.name AS request_type FROM sales_flat_order AS a
+                          INNER JOIN aw_rma_entity AS b ON a.entity_id = b.order_id
+                          INNER JOIN aw_rma_entity_types AS c ON b.request_type = c.id " <<
+                          (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
+                          "ORDER BY b.created_at DESC LIMIT 0,10")
+      while row = sth.fetch do
+          KM.identify(row['customer_email'])
+          ts = DateTime.parse(row['created_at']).to_time.to_i
+          KM.record('Requested return merchandise authorization', {'Order ID' => row['increment_id'].to_i,
+                                              'Reason' => row['request_type'],
+                                              '_d' => 1,
+                                              '_t' => ts})
+      end
+      sth.finish
     end
 
     def self.import_invoices
@@ -64,7 +77,7 @@ module MssqlKissmetrics
                         FROM sales_flat_order AS a
                         INNER JOIN sales_flat_order_address AS b ON a.shipping_address_id = b.entity_id AND b.address_type = 'shipping' " <<
                         (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
-                        "ORDER BY increment_id DESC")
+                        "ORDER BY increment_id DESC LIMIT 0,10")
       while row = sth.fetch do
           KM.identify(row['customer_email'])
 
