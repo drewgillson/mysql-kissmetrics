@@ -20,6 +20,7 @@ module MysqlKissmetrics
             t5 = Thread.new(dbh){|dbh| self.import_tickets(dbh)}
             t6 = Thread.new(dbh){|dbh| self.import_warranties(dbh)}
             t7 = Thread.new(dbh){|dbh| self.import_outofstock(dbh)}
+            t8 = Thread.new(dbh){|dbh| self.import_canceledorders(dbh)}
             t1.join
             t2.join
             t3.join
@@ -27,6 +28,7 @@ module MysqlKissmetrics
             t5.join
             t6.join
             t7.join
+            t8.join
         end
     end
 
@@ -108,6 +110,26 @@ module MysqlKissmetrics
       sth.finish
     end
 
+    def self.import_canceledorders(dbh)
+      sth = dbh.execute("SELECT b.label AS status, a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(a.updated_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS updated_at, 0 - b.grand_total, 0 - b.subtotal
+                         FROM sales_flat_order AS a
+                         INNER JOIN sales_order_status AS b ON a.status = b.status
+                         WHERE a.status LIKE 'cancel%' " <<
+                         (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.updated_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
+                        "ORDER BY a.updated_at DESC")
+      while row = sth.fetch do
+          KM.identify(row['customer_email'])
+          ts = DateTime.parse(row['updated_at']).to_time.to_i
+          KM.record('order has been canceled', {'Order ID' => row['increment_id'].to_i,
+                                                'Order Total' => row['grand_total'].to_f,
+                                                'Order Subtotal' => row['subtotal'].to_f,
+                                                'Reason' => row['status'],
+                                                '_d' => 1,
+                                                '_t' => ts})
+      end
+      sth.finish      
+    end    
+
     def self.import_invoices(dbh)
       sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, b.grand_total, b.subtotal
                          FROM sales_flat_order AS a
@@ -169,7 +191,7 @@ module MysqlKissmetrics
                                          '_t' => ts})
 
           xth = dbh.execute("SELECT x.*, CASE WHEN deal_qty > 0 THEN 'Deal of the Day' WHEN msrp = price THEN 'Full Price' WHEN price < msrp THEN CONCAT('On-Sale ', FORMAT((1-(price/msrp))*100,0), '%') END AS type FROM (
-                               SELECT t.value AS category, p.qty_ordered AS deal_qty, q.value AS msrp, b.sku, k.value AS brand, CASE WHEN r.value LIKE '%,%' THEN 'Unisex' ELSE s.value END AS department, d.value AS style, j.value AS season, i.value AS product, n.value AS color, o.value AS size, (SELECT MAX(price) FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku) AS price
+                               SELECT b.qty_ordered, t.value AS category, p.qty_ordered AS deal_qty, q.value AS msrp, b.sku, k.value AS brand, CASE WHEN r.value LIKE '%,%' THEN 'Unisex' ELSE s.value END AS department, d.value AS style, j.value AS season, i.value AS product, n.value AS color, o.value AS size, (SELECT MAX(price) FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku) AS price
                                FROM sales_flat_order AS a
                                INNER JOIN sales_flat_order_item AS b ON a.entity_id = b.order_id AND product_type = 'simple'
                                LEFT JOIN catalog_product_entity_int AS c ON b.product_id = c.entity_id AND c.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'manufacturer' AND entity_type_id = 4)
@@ -202,6 +224,7 @@ module MysqlKissmetrics
                           "Merchandise" => item['type'],
                           "Department" => item['department'],
                           "Category" => item['category'],
+                          "Qty" => item['qty_ordered'],
                           "_t" => ts,
                           "_d" => 1})
               end
