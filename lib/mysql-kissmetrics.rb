@@ -22,7 +22,7 @@ module MysqlKissmetrics
     end
 
     def self.import_rmas
-      sth = @dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),''%b %d %Y %h:%i %p'') AS created_at, c.name AS request_type FROM sales_flat_order AS a
+      sth = @dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, c.name AS request_type FROM sales_flat_order AS a
                           INNER JOIN aw_rma_entity AS b ON a.entity_id = b.order_id
                           INNER JOIN aw_rma_entity_types AS c ON b.request_type = c.id " <<
                           (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
