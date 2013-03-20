@@ -14,10 +14,10 @@ module MysqlKissmetrics
 
         conn = DBI.connect("dbi:ODBC:" << profile, username, password) do |dbh|
             @dbh = dbh
-            self.import_purchases
-            self.import_invoices
-            self.import_rmas
-            self.import_creditmemos
+            t1 = Thread.new{self.import_purchases}
+            t2 = Thread.new{self.import_invoices}
+            t3 = Thread.new{self.import_rmas}
+            t4 = Thread.new{self.import_creditmemos}
         end
     end
 
