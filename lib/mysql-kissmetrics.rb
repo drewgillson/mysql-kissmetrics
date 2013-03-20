@@ -19,13 +19,37 @@ module MysqlKissmetrics
             t4 = Thread.new(dbh){|dbh| self.import_creditmemos(dbh)}
             t5 = Thread.new(dbh){|dbh| self.import_tickets(dbh)}
             t6 = Thread.new(dbh){|dbh| self.import_warranties(dbh)}
+            t7 = Thread.new(dbh){|dbh| self.import_outofstock(dbh)}
             t1.join
             t2.join
             t3.join
             t4.join
             t5.join
             t6.join
+            t7.join
         end
+    end
+
+    def self.import_outofstock(dbh)
+      sth = dbh.execute("SELECT increment_id, DATE_FORMAT(DATE_ADD(MAX(created_at), INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, customer_email, qty_ordered, SUM(qty_ordered) - SUM(qty_invoiced) AS items_not_fulfilled FROM (
+                           SELECT b.increment_id, b.customer_firstname, b.customer_email, b.status, b.created_at, IFNULL(a.qty_ordered,0) AS qty_ordered, IFNULL(a.qty_invoiced,0) AS qty_invoiced
+                           FROM sales_flat_order AS b
+                           INNER JOIN sales_flat_order_item AS a ON b.entity_id = a.order_id
+                           WHERE b.created_at >= '2012-01-01' AND b.status != 'processing' AND b.status NOT LIKE '%canceled%' AND b.status NOT LIKE '%hold%' AND a.product_type = 'configurable' " <<
+                           (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(MAX(created_at), INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
+                        ") AS x
+                         WHERE qty_ordered <> qty_invoiced AND customer_email IS NOT NULL
+                         GROUP BY customer_firstname, customer_email
+                         ORDER BY a.created_at DESC")
+      while row = sth.fetch do
+          KM.identify(row['customer_email'])
+          ts = DateTime.parse(row['created_at']).to_time.to_i
+          KM.record('product is out-of-stock', {'Order ID' => row['increment_id'].to_i,
+                                                'Type' => (row['qty_ordered'] == row['items_not_fulfilled'] ? 'Entire order' : 'Partial order'),
+                                                '_d' => 1,
+                                                '_t' => ts})
+      end
+      sth.finish
     end
 
     def self.import_warranties(dbh)
