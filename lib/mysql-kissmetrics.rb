@@ -122,25 +122,25 @@ module MysqlKissmetrics
                                                     '_d' => 1,
                                                     '_t' => ts})
 
-          xth = dbh.execute("SELECT x.*, CASE WHEN deal_qty > 0 THEN ''Deal of the Day'' WHEN msrp = price THEN ''Full Price'' WHEN price < msrp THEN CONCAT(''On-Sale '', FORMAT((1-(price/msrp))*100,0), ''%'') END AS type FROM (
-                               SELECT t.value AS category, p.qty_ordered AS deal_qty, q.value AS msrp, b.sku, k.value AS brand, CASE WHEN r.value LIKE ''%,%'' THEN ''Unisex'' ELSE s.value END AS department, d.value AS style, j.value AS season, i.value AS product, n.value AS color, o.value AS size, (SELECT MAX(price) FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku) AS price
+          xth = dbh.execute("SELECT x.*, CASE WHEN deal_qty > 0 THEN Deal of the Day' WHEN msrp = price THEN 'Full Price' WHEN price < msrp THEN CONCAT('On-Sale ', FORMAT((1-(price/msrp))*100,0), '%') END AS type FROM (
+                               SELECT t.value AS category, p.qty_ordered AS deal_qty, q.value AS msrp, b.sku, k.value AS brand, CASE WHEN r.value LIKE '%,%' THEN 'Unisex' ELSE s.value END AS department, d.value AS style, j.value AS season, i.value AS product, n.value AS color, o.value AS size, (SELECT MAX(price) FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku) AS price
                                FROM sales_flat_order AS a
-                               INNER JOIN sales_flat_order_item AS b ON a.entity_id = b.order_id AND product_type = ''simple''
-                               LEFT JOIN catalog_product_entity_int AS c ON b.product_id = c.entity_id AND c.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''manufacturer'' AND entity_type_id = 4)
-                               LEFT JOIN catalog_product_entity_varchar AS d ON b.product_id = d.entity_id AND d.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''vendor_product_id'' AND entity_type_id = 4)
-                               LEFT JOIN catalog_product_entity_int AS f ON b.product_id = f.entity_id AND f.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''season_id'' AND entity_type_id = 4)
-                               LEFT JOIN catalog_product_entity_varchar AS i ON b.product_id = i.entity_id AND i.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''name'' AND entity_type_id = 4)
+                               INNER JOIN sales_flat_order_item AS b ON a.entity_id = b.order_id AND product_type = 'simple'
+                               LEFT JOIN catalog_product_entity_int AS c ON b.product_id = c.entity_id AND c.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'manufacturer' AND entity_type_id = 4)
+                               LEFT JOIN catalog_product_entity_varchar AS d ON b.product_id = d.entity_id AND d.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'vendor_product_id' AND entity_type_id = 4)
+                               LEFT JOIN catalog_product_entity_int AS f ON b.product_id = f.entity_id AND f.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'season_id' AND entity_type_id = 4)
+                               LEFT JOIN catalog_product_entity_varchar AS i ON b.product_id = i.entity_id AND i.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'name' AND entity_type_id = 4)
                                LEFT JOIN eav_attribute_option_value AS j ON f.value = j.option_id AND j.store_id = 0
                                LEFT JOIN eav_attribute_option_value AS k ON c.value = k.option_id AND k.store_id = 0
-                               LEFT JOIN catalog_product_entity_int AS l ON b.product_id = l.entity_id AND l.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''choose_color'' AND entity_type_id = 4)
-                               LEFT JOIN catalog_product_entity_int AS m ON b.product_id = m.entity_id AND m.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''choose_size'' AND entity_type_id = 4)
+                               LEFT JOIN catalog_product_entity_int AS l ON b.product_id = l.entity_id AND l.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'choose_color' AND entity_type_id = 4)
+                               LEFT JOIN catalog_product_entity_int AS m ON b.product_id = m.entity_id AND m.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'choose_size' AND entity_type_id = 4)
                                LEFT JOIN eav_attribute_option_value AS n ON l.value = n.option_id AND n.store_id = 0
                                LEFT JOIN eav_attribute_option_value AS o ON m.value = o.option_id AND o.store_id = 0
                                LEFT JOIN aw_collpur_deal_purchases AS p ON b.order_id = p.order_id AND p.order_item_id = (SELECT item_id FROM sales_flat_order_item WHERE order_id = b.order_id AND sku = b.sku ORDER BY price DESC LIMIT 0,1)
-                               LEFT JOIN catalog_product_entity_decimal AS q ON b.product_id = q.entity_id AND q.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''price'' AND entity_type_id = 4)
-                               LEFT JOIN catalog_product_entity_varchar AS r ON b.product_id = r.entity_id AND r.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''department'' AND entity_type_id = 4)
+                               LEFT JOIN catalog_product_entity_decimal AS q ON b.product_id = q.entity_id AND q.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'price' AND entity_type_id = 4)
+                               LEFT JOIN catalog_product_entity_varchar AS r ON b.product_id = r.entity_id AND r.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'department' AND entity_type_id = 4)
                                LEFT JOIN eav_attribute_option_value AS s ON r.value = s.option_id AND s.store_id = 0
-                               LEFT JOIN catalog_product_entity_varchar AS t ON (SELECT parent_id FROM catalog_product_super_link WHERE product_id = b.product_id LIMIT 0,1) = t.entity_id AND t.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = ''category_text'' AND entity_type_id = 4)                             
+                               LEFT JOIN catalog_product_entity_varchar AS t ON (SELECT parent_id FROM catalog_product_super_link WHERE product_id = b.product_id LIMIT 0,1) = t.entity_id AND t.attribute_id = (SELECT attribute_id FROM eav_attribute WHERE attribute_code = 'category_text' AND entity_type_id = 4)                             
                                WHERE a.entity_id = " << row['entity_id'].to_s << ") AS x")
           while item = xth.fetch do
               ts = ts + 1
