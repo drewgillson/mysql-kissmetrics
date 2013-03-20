@@ -17,15 +17,36 @@ module MysqlKissmetrics
             t2 = Thread.new(dbh){|dbh| self.import_invoices(dbh)}
             t3 = Thread.new(dbh){|dbh| self.import_rmas(dbh)}
             t4 = Thread.new(dbh){|dbh| self.import_creditmemos(dbh)}
+            t5 = Thread.new(dbh){|dbh| self.import_tickets(dbh)}
             t1.join
             t2.join
             t3.join
             t4.join
+            t5.join
         end
     end
 
+    def self.import_tickets(dbh)
+      sth = dbh.execute("SELECT DATE_FORMAT(DATE_ADD(a.created_time, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, CASE WHEN a.title OR b.name LIKE '%phone%' THEN 'Called customer service' WHEN a.title LIKE 'Chat transcript%' THEN 'Live-chatted with customer service' ELSE 'Emailed customer service' END AS channel, a.customer_email, a.order_id AS increment_id, b.name AS reason
+                         FROM aw_hdu_ticket AS a
+                         INNER JOIN aw_hdu_department AS b ON a.department_id = b.id
+                         WHERE customer_email != 'anonymous@gmail.com' AND customer_email != 'anon' AND customer_email NOT LIKE 'none@%' " << 
+                         (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.created_time, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
+                        "ORDER BY a.created_time DESC")
+      while row = sth.fetch do
+          KM.identify(row['customer_email'])
+          ts = DateTime.parse(row['created_at']).to_time.to_i
+          KM.record(row['channel'], {'Order ID' => row['increment_id'].to_i,
+                                     'Reason' => row['reason'],
+                                     '_d' => 1,
+                                     '_t' => ts})
+      end
+      sth.finish
+    end
+
     def self.import_rmas(dbh)
-      sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, c.name AS request_type FROM sales_flat_order AS a
+      sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, c.name AS request_type
+                         FROM sales_flat_order AS a
                          INNER JOIN aw_rma_entity AS b ON a.entity_id = b.order_id
                          INNER JOIN aw_rma_entity_types AS c ON b.request_type = c.id " <<
                          (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
