@@ -36,11 +36,11 @@ module MysqlKissmetrics
                            FROM sales_flat_order AS b
                            INNER JOIN sales_flat_order_item AS a ON b.entity_id = a.order_id
                            WHERE b.created_at >= '2012-01-01' AND b.status != 'processing' AND b.status NOT LIKE '%canceled%' AND b.status NOT LIKE '%hold%' AND a.product_type = 'configurable' " <<
-                           (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(MAX(created_at), INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
+                           (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         ") AS x
                          WHERE qty_ordered <> qty_invoiced AND customer_email IS NOT NULL
                          GROUP BY customer_email
-                         ORDER BY a.created_at DESC")
+                         ORDER BY created_at DESC")
       while row = sth.fetch do
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
