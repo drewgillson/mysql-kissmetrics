@@ -2,7 +2,7 @@
 require 'yaml'
 require File.join(File.dirname(__FILE__), '../lib/mysql-kissmetrics.rb')
 begin
-    k = YAML.load_file 'C:\Ruby200-x64\projects\mysql-kissmetrics\config.yaml'
+    k = YAML.load_file 'config.yaml'
     k.map{|k,v|v.to_s.dump}
 rescue StandardError => e
     puts e.message
