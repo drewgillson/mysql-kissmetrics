@@ -1,12 +1,15 @@
 class KM
-  @id        = nil
-  @key       = nil
-  @logs      = {}
-  @host      = 'trk.kissmetrics.com:80'
-  @log_dir   = '/tmp'
-  @to_stderr = true
-  @use_cron  = false
-  @dryrun    = false
+  
+  def initialize
+    @id        = nil
+    @key       = nil
+    @logs      = {}
+    @host      = 'trk.kissmetrics.com:80'
+    @log_dir   = '/tmp'
+    @to_stderr = true
+    @use_cron  = false
+    @dryrun    = false
+  end
 
   def init(key, options={})
     default = {
@@ -190,7 +193,6 @@ class KM
       query_arr <<  key_val.collect { |i| URI.escape(i.to_s, unsafe) }.join('=')
     end
     query = '/' + type + '?' + query_arr.join('&')
-    puts query
     if @use_cron
       log_query(query)
     else
