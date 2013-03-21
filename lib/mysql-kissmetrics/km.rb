@@ -190,6 +190,7 @@ class KM
       query_arr <<  key_val.collect { |i| URI.escape(i.to_s, unsafe) }.join('=')
     end
     query = '/' + type + '?' + query_arr.join('&')
+    puts query
     if @use_cron
       log_query(query)
     else
