@@ -44,6 +44,7 @@ module MysqlKissmetrics
                          GROUP BY customer_email
                          ORDER BY created_at DESC")
       while row = sth.fetch do
+          next if row['customer_email'] == nil || row['customer_email'] == ''
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           KM.record('product is out-of-stock', {'Order ID' => row['increment_id'].to_i,
@@ -59,6 +60,7 @@ module MysqlKissmetrics
                          (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.date_added, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         "ORDER BY a.date_added DESC")
       while row = sth.fetch do
+          next if row['customer_email'] == nil || row['customer_email'] == ''
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           KM.record('wants to warranty something', {'Order ID' => row['order_id'].to_i,
@@ -82,6 +84,7 @@ module MysqlKissmetrics
                          (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.created_time, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         "ORDER BY a.created_time DESC")
       while row = sth.fetch do
+          next if row['customer_email'] == nil || row['customer_email'] == ''
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           KM.record(row['channel'], {'Order ID' => row['increment_id'].to_i,
@@ -100,6 +103,7 @@ module MysqlKissmetrics
                          (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         "ORDER BY b.created_at DESC")
       while row = sth.fetch do
+          next if row['customer_email'] == nil || row['customer_email'] == ''
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           KM.record('wants to return something', {'Order ID' => row['increment_id'].to_i,
@@ -118,6 +122,7 @@ module MysqlKissmetrics
                          (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.updated_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         "ORDER BY a.updated_at DESC")
       while row = sth.fetch do
+          next if row['customer_email'] == nil || row['customer_email'] == ''
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['updated_at']).to_time.to_i
           KM.record('order has been canceled', {'Order ID' => row['increment_id'].to_i,
@@ -137,6 +142,7 @@ module MysqlKissmetrics
                          (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         "ORDER BY b.created_at DESC")
       while row = sth.fetch do
+          next if row['customer_email'] == nil || row['customer_email'] == ''
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           KM.record('order has been shipped', {'Order ID' => row['increment_id'].to_i,
@@ -155,6 +161,7 @@ module MysqlKissmetrics
                          (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(b.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         "ORDER BY b.created_at DESC")
       while row = sth.fetch do
+          next if row['customer_email'] == nil || row['customer_email'] == ''
           KM.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           KM.record('order has been refunded', {'Order ID' => row['increment_id'].to_i,
@@ -173,6 +180,7 @@ module MysqlKissmetrics
                          (@allowed_history_days > 0 ? "WHERE  " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.created_at, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         "ORDER BY increment_id DESC")
       while row = sth.fetch do
+          next if row['customer_email'] == nil || row['customer_email'] == ''
           KM.identify(row['customer_email'])
 
           KM.set({"First Name" => row['customer_firstname'],
@@ -224,7 +232,7 @@ module MysqlKissmetrics
                           "Merchandise" => item['type'],
                           "Department" => item['department'],
                           "Category" => item['category'],
-                          "Qty" => item['qty_ordered'],
+                          "Qty" => item['qty_ordered'].to_i,
                           "_t" => ts,
                           "_d" => 1})
               end
