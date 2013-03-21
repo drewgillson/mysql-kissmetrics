@@ -22,7 +22,7 @@ module MysqlKissmetrics
              'warranties',
              'outofstock',
              'canceledorders'].each{ |method|
-              threads << Thread.new(dbh){|dbh| eval('self.import_' << method << '(dbh)')}
+              threads << Thread.new(dbh){|dbh| self.send('import_' << method, dbh)}
             }
             threads.each { |t| t.join }
         end
