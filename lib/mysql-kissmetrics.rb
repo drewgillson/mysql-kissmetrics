@@ -64,7 +64,7 @@ module MysqlKissmetrics
           k.record('wants to warranty something', {'Order ID' => row['order_id'].to_i,
                                              '_d' => 1,
                                              '_t' => ts})
-          if row['status'] != nil && row['status'].include? "resolved"
+          if row['status'] != nil && row['status'].include?("resolved")
             ts = DateTime.parse(row['date_updated']).to_time.to_i
             k.record('warranty has been resolved', {'Order ID' => row['order_id'].to_i,
                                                      '_d' => 1,
