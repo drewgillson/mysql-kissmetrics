@@ -111,7 +111,7 @@ module MysqlKissmetrics
     end
 
     def self.import_canceledorders(dbh)
-      sth = dbh.execute("SELECT b.label AS status, a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(a.updated_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS updated_at, 0 - a.grand_total, 0 - a.subtotal
+      sth = dbh.execute("SELECT b.label AS status, a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(a.updated_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS updated_at, 0 - a.grand_total AS grand_total, 0 - a.subtotal AS subtotal
                          FROM sales_flat_order AS a
                          INNER JOIN sales_order_status AS b ON a.status = b.status
                          WHERE a.status LIKE 'cancel%' " <<
