@@ -11,7 +11,6 @@ module MysqlKissmetrics
         @allowed_history_days = allowed_history_days
         @now = DateTime.now.to_time.to_i
         @km_key = km_key
-
         conn = DBI.connect("dbi:ODBC:" << profile, username, password) do |dbh|
             threads = []
             ['purchases',
@@ -29,7 +28,8 @@ module MysqlKissmetrics
     end
 
     def self.import_outofstock(dbh)
-      k = KM.init(@km_key, :log_dir => 'log/')
+      k = KM.new
+      k.init(@km_key, :log_dir => 'log/')
       sth = dbh.execute("SELECT increment_id, DATE_FORMAT(DATE_ADD(MAX(created_at), INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, customer_email, qty_ordered, SUM(qty_ordered) - SUM(qty_invoiced) AS items_not_fulfilled FROM (
                            SELECT b.increment_id, b.customer_email, b.status, b.created_at, IFNULL(a.qty_ordered,0) AS qty_ordered, IFNULL(a.qty_invoiced,0) AS qty_invoiced
                            FROM sales_flat_order AS b
@@ -53,7 +53,8 @@ module MysqlKissmetrics
     end
 
     def self.import_warranties(dbh)
-      k = KM.init(@km_key, :log_dir => 'log/')
+      k = KM.new
+      k.init(@km_key, :log_dir => 'log/')
       sth = dbh.execute("SELECT DATE_FORMAT(DATE_ADD(a.date_added, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, a.customer_email, a.order_id, a.status, DATE_FORMAT(DATE_ADD(a.date_updated, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS date_updated FROM lotwarranty_warranty AS a WHERE customer_email LIKE '%@%' " <<
                          (@allowed_history_days > 0 ? " AND " << @now.to_s << " - UNIX_TIMESTAMP(DATE_ADD(a.date_added, INTERVAL -7 HOUR) ) <= " << (@allowed_history_days * 86000).to_s << " " : "") <<
                         "ORDER BY a.date_added DESC")
@@ -75,7 +76,8 @@ module MysqlKissmetrics
     end
 
     def self.import_tickets(dbh)
-      k = KM.init(@km_key, :log_dir => 'log/')
+      k = KM.new
+      k.init(@km_key, :log_dir => 'log/')
       sth = dbh.execute("SELECT DATE_FORMAT(DATE_ADD(a.created_time, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, CASE WHEN a.title OR b.name LIKE '%phone%' THEN 'phoned us' WHEN a.title LIKE 'Chat transcript%' THEN 'chatted with us' ELSE 'emailed us' END AS channel, a.customer_email, a.order_id AS increment_id, b.name AS reason
                          FROM aw_hdu_ticket AS a
                          INNER JOIN aw_hdu_department AS b ON a.department_id = b.id
@@ -95,7 +97,8 @@ module MysqlKissmetrics
     end
 
     def self.import_rmas(dbh)
-      k = KM.init(@km_key, :log_dir => 'log/')
+      k = KM.new
+      k.init(@km_key, :log_dir => 'log/')
       sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, c.name AS request_type
                          FROM sales_flat_order AS a
                          INNER JOIN aw_rma_entity AS b ON a.entity_id = b.order_id
@@ -115,7 +118,8 @@ module MysqlKissmetrics
     end
 
     def self.import_canceledorders(dbh)
-      k = KM.init(@km_key, :log_dir => 'log/')
+      k = KM.new
+      k.init(@km_key, :log_dir => 'log/')
       sth = dbh.execute("SELECT b.label AS status, a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(a.updated_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS updated_at, 0 - a.grand_total AS grand_total, 0 - a.subtotal AS subtotal
                          FROM sales_flat_order AS a
                          INNER JOIN sales_order_status AS b ON a.status = b.status
@@ -137,7 +141,8 @@ module MysqlKissmetrics
     end    
 
     def self.import_invoices(dbh)
-      k = KM.init(@km_key, :log_dir => 'log/')
+      k = KM.new
+      k.init(@km_key, :log_dir => 'log/')
       sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, b.grand_total, b.subtotal
                          FROM sales_flat_order AS a
                          INNER JOIN sales_flat_invoice AS b ON a.entity_id = b.order_id " <<
@@ -157,7 +162,8 @@ module MysqlKissmetrics
     end
 
     def self.import_creditmemos(dbh)
-      k = KM.init(@km_key, :log_dir => 'log/')
+      k = KM.new
+      k.init(@km_key, :log_dir => 'log/')
       sth = dbh.execute("SELECT a.increment_id, a.customer_email, DATE_FORMAT(DATE_ADD(b.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, 0 - b.grand_total AS grand_total, 0 - b.subtotal AS subtotal
                          FROM sales_flat_order AS a
                          INNER JOIN sales_flat_creditmemo AS b ON a.entity_id = b.order_id " <<
@@ -177,7 +183,8 @@ module MysqlKissmetrics
     end
 
     def self.import_purchases(dbh)
-      k = KM.init(@km_key, :log_dir => 'log/')
+      k = KM.new
+      k.init(@km_key, :log_dir => 'log/')
       sth = dbh.execute("SELECT a.entity_id, DATE_FORMAT(DATE_ADD(a.created_at, INTERVAL -7 HOUR),'%b %d %Y %h:%i %p') AS created_at, a.customer_email, a.customer_firstname, a.customer_lastname, a.increment_id, a.grand_total, a.subtotal, b.region, b.postcode, b.city, a.coupon_code
                          FROM sales_flat_order AS a
                          INNER JOIN sales_flat_order_address AS b ON a.shipping_address_id = b.entity_id AND b.address_type = 'shipping' " <<
