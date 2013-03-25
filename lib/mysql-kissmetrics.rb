@@ -13,8 +13,7 @@ module MysqlKissmetrics
         @km_key = km_key
         conn = DBI.connect("dbi:ODBC:" << profile, username, password) do |dbh|
             threads = []
-            ['purchases',
-             'invoices',
+            ['invoices',
              'rmas',
              'creditmemos',
              'tickets',
