@@ -132,7 +132,7 @@ module MysqlKissmetrics
           ts = DateTime.parse(row['updated_at']).to_time.to_i
           k.record('order has been canceled', {'Order ID' => row['increment_id'].to_i,
                                                 'Cancel Total' => row['grand_total'].to_f,
-                                                'Reason' => row['status'],
+                                                'Reason for Cancellation' => row['status'],
                                                 '_d' => 1,
                                                 '_t' => ts})
       end
