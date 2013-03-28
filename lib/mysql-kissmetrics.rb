@@ -13,7 +13,8 @@ module MysqlKissmetrics
         @km_key = km_key
         conn = DBI.connect("dbi:ODBC:" << profile, username, password) do |dbh|
             threads = []
-            ['invoices',
+            ['purchases',
+             'invoices',
              'rmas',
              'creditmemos',
              'tickets',
@@ -88,7 +89,7 @@ module MysqlKissmetrics
           k.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           k.record(row['channel'], {'Order ID' => row['increment_id'].to_i,
-                                     'Reason' => row['reason'],
+                                     'Reason for Ticket' => row['reason'],
                                      '_d' => 1,
                                      '_t' => ts})
       end
@@ -109,7 +110,7 @@ module MysqlKissmetrics
           k.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           k.record('wants to return something', {'Order ID' => row['increment_id'].to_i,
-                                                                    'Reason' => row['request_type'],
+                                                                    'Reason for Return' => row['request_type'],
                                                                     '_d' => 1,
                                                                     '_t' => ts})
       end
@@ -130,8 +131,7 @@ module MysqlKissmetrics
           k.identify(row['customer_email'])
           ts = DateTime.parse(row['updated_at']).to_time.to_i
           k.record('order has been canceled', {'Order ID' => row['increment_id'].to_i,
-                                                'Order Total' => row['grand_total'].to_f,
-                                                'Order Subtotal' => row['subtotal'].to_f,
+                                                'Cancel Total' => row['grand_total'].to_f,
                                                 'Reason' => row['status'],
                                                 '_d' => 1,
                                                 '_t' => ts})
@@ -152,8 +152,7 @@ module MysqlKissmetrics
           k.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           k.record('order has been shipped', {'Order ID' => row['increment_id'].to_i,
-                                               'Order Total' => row['grand_total'].to_f,
-                                               'Order Subtotal' => row['subtotal'].to_f,
+                                               'Invoice Total' => row['grand_total'].to_f,
                                                '_d' => 1,
                                                '_t' => ts})
       end
@@ -173,8 +172,7 @@ module MysqlKissmetrics
           k.identify(row['customer_email'])
           ts = DateTime.parse(row['created_at']).to_time.to_i
           k.record('order has been refunded', {'Order ID' => row['increment_id'].to_i,
-                                       'Order Total' => row['grand_total'].to_f,
-                                       'Order Subtotal' => row['subtotal'].to_f,
+                                       'Refund Total' => row['grand_total'].to_f,
                                        '_d' => 1,
                                        '_t' => ts})
       end
@@ -202,8 +200,6 @@ module MysqlKissmetrics
           ts = DateTime.parse(row['created_at']).to_time.to_i
           k.record('bought something', {'Order ID' => row['increment_id'].to_i,
                                          'Order Total' => row['grand_total'].to_f,
-                                         'Order Subtotal' => row['subtotal'].to_f,
-                                         'Ship to Province' => row['region'],
                                          'Coupon Code' => row['coupon_code'],
                                          '_d' => 1,
                                          '_t' => ts})
@@ -236,8 +232,6 @@ module MysqlKissmetrics
                           "Product" => item['product'],
                           "Color" => item['color'],
                           "Size" => item['size'],
-                          "Season" => item['season'],
-                          "Style" => item['style'],
                           "Price" => item['price'].to_f,
                           "Merchandise" => item['type'],
                           "Department" => item['department'],
