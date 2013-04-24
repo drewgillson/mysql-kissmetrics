@@ -198,8 +198,8 @@ module MysqlKissmetrics
                   "City" => row['city']})
 
           ts = DateTime.parse(row['created_at']).to_time.to_i
-          k.record('bought something', {'Order ID' => row['increment_id'].to_i,
-                                         'Order Total' => row['grand_total'].to_f,
+          k.record('made a purchase', {'Order ID' => row['increment_id'].to_i,
+                                         'Sales Total' => row['grand_total'].to_f,
                                          'Coupon Code' => row['coupon_code'],
                                          '_d' => 1,
                                          '_t' => ts})
